@@ -1,0 +1,513 @@
+\documentclass{article}
+
+\usepackage{graphicx} % Required for inserting images
+\usepackage{hyperref} % For inserting links
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{setspace}
+\usepackage{tikz}
+\usepackage[export]{adjustbox}
+\usepackage{float}
+\usepackage{cite}
+\usepackage{amsrefs}
+
+\usepackage{caption}
+\usepackage[skip=1ex, belowskip=2ex]{subcaption}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
+% Defines paragraph spacing
+\setlength{\parindent}{0pt} % No indents
+\setlength{\parskip}{1em} % Space between paragraphs
+\onehalfspacing
+
+
+\title{The JPEG 2000 Wavelets}
+\author{Vincent Cushnie \\ Benjamin Langford}
+\date{April 2025}
+
+\begin{document}
+
+\maketitle
+\clearpage
+\section{Introduction}
+
+In an increasingly digital age, where data usage and storage are at an all-time high, efficient compression standards are essential. With modern personal computers storing upwards of a terabyte of data and large data centers exceeding several exabytes of storage$^1$, it is necessary to have a standardized file format that increases data portability and reduces file size. The JPEG2000 standard aims to do that. Improving upon its predecessor, JPEG, JPEG2000 introduces a different method for both lossless and lossy image compression. While the older standard utilized discrete cosine transforms (DCTs) to convert small blocks of pixels into the frequency domain, the JPEG2000 standard uses discrete wavelet transforms (DWTs) and multi-resolution analysis.
+
+Instead of using a Fourier-based method to retrieve different levels of detail in an image, JPEG2000 implements two different wavelets that allow for the filtering of an image based on one's needs, lossy or lossless compression. The first wavelet, used for lossy compression (a type of compression in which data is discarded to reduce file size), is known as the Cohen-Daubechies-Feauveau 9/7 wavelet or 9/7 Daubechies for short. The second wavelet, used for lossless compression (a type of compression in which the original data is retained to maintain image quality), is known as the LeGall-Tabatabai 5/3 wavelet or 5/3 LeGall for short.
+
+The topic of this paper is centered around these two wavelets, 9/7 Daubechies and the 5/3 LeGall. In section 2, the paper will discuss basic properties of these two wavelets and why they are important. It will cover the biorthogonality property, vanishing moments, and the lifting scheme. Section 3 of the paper will discuss the unique properties of the 9/7 Daubechies wavelet and why this particular wavelet is well-suited to the application of image compression. Section 4 will similarly discuss the 5/3 LeGall wavelet with the addition of its natural coefficients. Section 5 will demonstrate how the wavelets are used in the context of the JPEG2000 standard. A simple example will be given after explaining the background of how and why images are first encoded. Finally, section 6 will conclude this paper and offer closing remarks.  
+
+%The use of wavelets in the JPEG2000 standard has many benefits over the older JPEG standard. The difference in implementation, discrete wavelet transforms versus discrete cosine transforms, leads to better compression and mitigates artifacting. Additionally, JPEG2000 supports new features and improves upon those in the JPEG standard. For instance, progressive transmission, improved performance at low bit rates, and decompression of arbitrary areas$^2$. However, these benefits come at the cost of high mathematical complexity, increased memory usage, and lack of widespread support$^3$. 
+\section{JPEG 2000 Wavelet Properties and \mbox{Construction}}
+\subsection{Biorthogonal Wavelets/Dual Multiresolution Analysis}
+Both the wavelets used in the JPEG 2000 algorithm, 9/7 Daubechies and 5/3 LeGall, are biorthogonal wavelets. This provides several key advantages over orthogonal wavelets although it also increases the compression algorithm complexity.
+For any multiresolution analysis, the following scaling relation holds:
+\[\phi(x)=\sum_{k}h_{k}\phi(2x-k)\]
+If the scaling function is orthogonal then we have,
+\[\langle\phi(t-p),\phi(t-l)\rangle=1\delta_{pl}\]
+However, if we are dealing with biorthogonal wavelets, the scaling function need not be orthogonal. Instead, we construct two scaling functions, \(\phi,\tilde{\phi}\) and two corresponding wavelet functions \(\psi,\tilde{\psi}\) which are used separately for deconstruction and reconstruction. The objection to this is that if the scaling functions are not orthogonal, the coefficients during decomposition and reconstruction will overlap and contain some of the same information. This intuition is correct but the coefficients of the wavelet transform are meaningless until they are recomposed (possibly after some compression) to form the signal. For this reason, some overlapping of the coefficients in decomposition is acceptable given that overlap is accounted for when we reconstruct the signal. From this we derive the orthogonality relationship between  \(\phi,\tilde{\phi}\) that must be satisfied for biorthogonal wavelets
+\[\langle\phi(t-p),\tilde{\phi}(t-l)\rangle=\int_{-\infty}^{\infty}\sum_{k}h_{k}\phi(2t-2l-k)\sum_{m}\tilde{h_{m}}\tilde{\phi}(2t-2p-m)dt\]
+\[=\sum_{k}h_{k}\sum_{m}\tilde{h_{m}}\int_{-\infty}^{\infty}\phi(2t-2l-k)\tilde{\phi}(2t-2p-m)dt\]
+\[=\frac{1}{2}\sum_{k}h_k\tilde{h_{k}}\int_{-\infty}^{\infty}\phi(u)\tilde{\phi}(u+2(p-l))du=\delta_{pl}\]
+The corresponding spaces to each of the two scaling functions form a dual basis \(V_{j},\tilde{V}_{j} \).
+The wavelet functions are constructed in the same way as orthogonal wavelets except that there is a different function for each of the two scaling functions. 
+To further build intuition regarding biorthogonal wavelets it is helpful to examine the projection \(P_j\) of a function \(f\in L_2\) onto the scaling space \(\phi_{j,k}, \tilde{\phi}_{j,k}\).
+\[P_{j} f = \sum_{k\in\kappa(j)} \langle f,\phi_{j,k} \rangle \tilde{\phi}_{j,k}\]
+Where \(\kappa(j)\) is an index set of all the shift values needed so that the scaling functions cover (in the orthogonal case, the scaling functions would form a basis). We retain the following property of orthogonal wavelets that as the support of the individual scaling functions goes to zero (\(j \to \infty\) the projection of f \(P_{j}\)in the dual basis \(V_{j}, \tilde{V}_{j}\)is perfect. Formally,
+\[lim_{j\to\infty} ||f-P_{j} f||=0\]
+The use of biorthogonal wavelets allows greater freedom and flexibility in constructing the scaling functions while still keeping an invertible wavelet transform which captures aspects of locality and frequency. Biorthogonality also aids somewhat in the implementation of the wavelet transform, which is covered in the next section on the lifting scheme. Both the 9/7 Daubechies wavelet and the 5/3 LeGall wavelet are biorthogonal wavelets. (Note: The content in this section was mostly informed by Wim Swelden's paper on the Lifting Scheme\cite{academicpaper1})
+\subsection{Vanishing Moments}
+In order to gain a measure of the effectiveness of the MRA in analyzing the given signal, the concept of vanishing moments is useful. The vanishing moment of a wavelet function is mathematically defined as the largest degree polynomial \(f_{n}(x)\) for which the following relation holds
+\[\int f_{n}(x)\psi_{j,k}(x)dx=0 \text{  \hspace{1cm} for }j\in\mathbb{Z},\hspace{.3cm}k\in\kappa(j).\]
+The number of the largest degree \(n+1=N\) is called the number of vanishing moments of the wavelet which refers to the smallest degree polynomial that cannot be be "vanished" by the wavelet function. This provides insight into the purpose of the wavelet as well, since we can estimate signals locally using polynomial approximations such as the Taylor approximations. It is easy to see then that the wavelet function can vanish the part of the signal that can be approximated with a polynomial of degree \(n\) leaving the higher frequency parts approximated by higher degree polynomials. This makes sense since the wavelet function acts as a high-pass filter capturing detail. The effectiveness of the MRA can also be considered in terms of the scaling function. In this case, the order of the MRA is the largest order polynomial function \(f_{n}(x)\) for which \(f_{n}(x)\) can be expressed as a linear combination of scaling functions.
+\[f_{n}(x)=\sum_{k\in \kappa(x)}h_{k}\phi_{j,k}(x) dx\ \text{\hspace{1cm} for }j\in\mathbb{Z}.\]
+The largest degree plus 1 in this case is called the order of the MRA and is equal to the number of vanishing moments. It can be seen in these examples the nature of the relationship between the scaling function and the wavelet function. The scaling function captures the lower frequency information while the wavelet function captures the higher frequency detail.
+In a biorthogonal wavelet, there are two vanishing moments or orders corresponding to the two scaling functions \(\phi(x),\tilde{\phi}(x)\).
+These are defined in the same way as the orthogonal case where \(N,\tilde{N}\) are one greater than the largest degree polynomial that can be represented as a linear combination of their scaling function.
+\[f_{n}(x)=\sum_{k\in \kappa(x)}h_{k}\tilde{\phi}_{j,k}(x) dx\ \text{\hspace{1cm} for }j\in\mathbb{Z}.\]
+\[f_{n}(x)=\sum_{k\in \kappa(x)}h_{k}\phi_{j,k}(x) dx\ \text{\hspace{1cm} for }j\in\mathbb{Z}.\]
+Because of the following property of biorthogonal wavelets (and since \(\phi\) is not necessarily orthogonal to \(\psi\))
+\[\langle \psi_{j,k}, \tilde{\phi}_{j,k}\rangle=0\]
+\[\langle \tilde{\psi}_{j,k}, \phi_{j,k}\rangle=0 \]
+The corresponding vanishing moment equations are for \(N\):
+\[\int f_{n}(x)\tilde{\psi}_{j,k}(x)dx=0 \text{  \hspace{1cm} for }j\in\mathbb{Z},\hspace{.3cm}k\in\kappa(j).\]
+and for \(\tilde{N}\):
+\[\int f_{n}(x)\psi_{j,k}(x)dx=0 \text{  \hspace{1cm} for }j\in\mathbb{Z},\hspace{.3cm}k\in\kappa(j).\]
+
+Vanishing moments represent a unique tradeoff in wavelet decomposition. A wavelet with more vanishing moments will be better able to capture detail in the signal since, loosely speaking, the more complicated form of its scaling and wavelet function capture more detail in each level of decomposition. However, this also requires more computation (as will be further explored in the following section on the lifting scheme) and a worse ability at capturing sharp changes. The latter effect is due to the increasing of scaling function support as vanishing moments are increased. Since the scaling and wavelet functions are more spread out, they are unable to pinpoint the exact location of a signal spike that a more simple decomposition with less vanishing moments such as the Haar wavelet would be able to. (Note: The content in this section was mostly informed by Wim Swelden's paper on the Lifting Scheme\cite{academicpaper1})
+
+
+\subsection{Lifting Scheme}
+While a detailed description of the programming methods used in the JPEG2000 algorithm is outside the scope of this paper, the mathematical implementation of the low and high pass filters is of some relevance. Due to the speed of matrix computation in modern computer architecture, it is useful to implement the discrete wavelet transform as a matrix.\newline
+Without using a lifting scheme, a common method for implementing a wavelet transform is the use of filter banks \(H,L\) for analysis and \(\tilde{H}, \tilde{L}\) for reconstruction. For example, with the Haar wavelet this would be
+\[H=\{... 0,0,-1,1,0,0,0...\}\]
+\[L=\{...0,0,0,1,1,0,0,...\}\]
+The idea with the lifting scheme is to put these into a series of steps which can be combined into a polyphase matrix.
+To understand the lifting scheme, it is necessary to first understand a critical mechanism which is used to represent wavelet and scaling coefficient of \(V_{j}, W_{j}\). For this example, consider the Haar wavelet coefficient. When working from a discrete signal in \(L^{2}\) the coefficients can be found by the following formulas with \(a\) representing scaling function coefficients and \(b\) representing wavelet function coefficients.
+\[a^{j}_{k}=\frac{1}{2}(a^{j+1}_{2k}+a^{j+1}_{2k+1})\]
+\[b^{j}_{k}=\frac{1}{2}(a^{j+1}_{2k}-a^{j+1}_{2k+1})\]
+This would allow us to find two groups of coefficients of equal size, such that the number of coefficients of \(a^{j}\) plus \(b^{j}\) equals the number of coefficients of\(a^{j+1}\). This is intuitive since \(V_{j+1}=V_{j}\oplus W_{j}\). Now the trick we make use of is recognizing that since the total number of coefficients is always preserved we can label our wavelet coefficients odd and our scaling coefficients even. This will help immensely with the matrix calculations which are used in the lifting scheme and is intuitive to the structure of wavelets and scaling functions. Scaling coefficients can be thought of as representing the "average" value over its support (for Haar wavelets it is actually the average between two coefficients) while wavelet coefficients represent the "detail" value over its support (for Haar wavelets it is actually the difference between two neighboring coefficients). This is helpful because it removes the need for upsampling or downsampling because it is included in the dividing even and odd coefficients. It should be noted that lifting steps that change the "average" even coefficients are often called update steps and lifting steps that change the "detail" odd coefficients are often called predict steps.
+The lifting scheme will be explained simply throughout the rest of the section, although the rigor of the demonstration is not suitable for all cases. However, for finite impulse response (FIR) filters such as are used in the CDF 9/7 Wavelet and the LeGall 5/3 Wavelet, it can be assumed that the lifting scheme is valid. The z transform for a FIR filter is given by
+\[h(z)=\sum_{k}h_kz^{-k}\]
+(Note that for FIR filiters, \(h_k\) will be zero outside a finite set). Given four filters \(h,\tilde{h},g,\tilde{g}\) (let h be the low-pass and g be the high-pass filter and tilde denote analysis filters), the conditions required for the formation of a valid MRA can be written as
+\[h(z)\tilde{h}(z^{-1})+g(z)\tilde{g}(z^{-1})=2\]
+\[h(z)\tilde{h}(-z^{-1})+g(z)\tilde{g}(-z^{-1})=0\]
+
+A filter \(h\) can be written in polyphase form by
+\[h(z)=h_{e}(z^{2})+z^{-1}h_{o}(z^{2})\]
+where \(h_e(z)\) affects the even coefficients and \(h_o\) affects the odd coefficients
+\[h_{e}(z)=\sum_{k}h_{2k}z^{-k} \text{\hspace{.5cm}and\hspace{.5cm}} h_{o}(z)=\sum_{k}h_{2k+1}z^{-k}\]
+So that
+\[h_{e}(z^{2})=\frac{h(z)+h(-z)}{2} \text{\hspace{.5cm}and\hspace{.5cm}} h_{o}(z^{2})=\frac{h(z)-h(-z)}{2z^{-1}}\]
+The polyphase matrix is then defined as
+\[P(z)=\begin{bmatrix}
+    h_{e}(z) & g_{e}(z) \\
+    h_{o}(z) & h_{0}(z)
+\end{bmatrix}\]
+
+Define \(\tilde{P}(z)\), the dual polyphase matrix, in the same way using the analysis filters. The reconstruction relation can be restated in terms of polyphase matrices as
+\[P(z)\tilde{P}(z^{-1})^T=I\]
+This gives an idea as to how the wavelet transform can be accomplished using matrices. The process will be as follows, separate the signal into even and odd parts, apply the dual polyphase matrix, perform any compression/filtering that is desired, apply the polyphase matrix, stitch the even and odd parts of the signal back together.
+So far, the filters must be previously known and valid in order to construct a polyphase matrix. This is where lifting steps are used. By starting with the trivial polyphase matrix \(P(x)=I\) which does nothing but divide the signal into even and odd, lifting steps can be added as needed to construct a custom MRA that fits the application. The trivial polyphase matrix is called the Lazy wavelet.
+The lifting steps are created using a Laurent polynomial \(s(z)\)(further elaboration on the necessity or consequences of this are outside the scope of this paper) which is used to create a new high-pass filter \(g'(z)\) using the formula:
+\[g'(z)=g(z)+h(z)s(z^{2})\]
+This construction has the property of maintaining complementarity with the corresponding low-pass filter \(h\) which allows the creation of a new polyphase matrix \(P'(z)\) given by
+\[P'(z)=P(z)\begin{bmatrix}
+    1 & s(z) \\
+    0 & 1
+\end{bmatrix}\]
+By using lifting, a valid polyphase matrix is maintained and the filters can be adjusted by using the Laurent polynomial corresponding to the desired change.
+Lifting steps can also be used to adjust the analysis low pass and synthesis high pass in a similar way. The following formulas summarize the process. Let \(s(z), t(z)\) are Laurent polynomials
+\[g'(z)=g(z)+h(z)s(z^{2})\]
+\[\tilde{h'}(z)=\tilde{h}(z)-\tilde{g}(z)s(-z^{2})\]
+\[P'(z)=P(z)\begin{bmatrix}
+    1 & s(z) \\
+    0 & 1
+\end{bmatrix}\]
+\[h'(z)=h(z)+g(z)t(z^{2})\]
+\[\tilde{g'}(z)=\tilde{g}(z)-\tilde{h}(z)t(-z^{2})\]
+\[P'(z)=P(z)\begin{bmatrix}
+    1 & 0 \\
+    t(z) & 1
+\end{bmatrix}\]
+All that is left to form the lifting step form of the polyphase matrix is to find a way to factor our filters into Laurent polynomials. This is done through the Euclidean algorithm. Note: the process of the Euclidean Algorithm to find the greatest common divisor will not be covered in detail. Since the \(det(P)\) =1 for a valid filter polyphase matrix, it is known that \(h_{e}(z)\) and \(h_{o}(z)\) are relatively prime. Though Laurent polynomial division is not unique, quotients can be picked to ensure a constant \(C\) gcd. The euclidean algorithm is used and \(h_{e}(z)\) and \(h_{o}(z)\) are expressed as lifting steps times a gcd constant \(C\) in
+\[\begin{bmatrix}
+    h_e(z)\\
+    h_o(z)
+\end{bmatrix}=C\prod_{i=1}^{n}\begin{bmatrix}
+    s_{i}(z) & 1\\
+    1 & 0
+\end{bmatrix}\begin{bmatrix}
+    1\\0
+\end{bmatrix}\]
+Once the lifting steps for \(\begin{bmatrix}
+    h_e(z) \\ h_o(z)
+\end{bmatrix}\) have been found, the corresponding low pass filter \(g_e(z)\) and \(g_o(z)\) can be found thus completing the polyphase matrix \(P\):
+\[P^{0}(z)=\begin{bmatrix}
+    h_{e}(z) & g_{e}^{0}(z) \\
+    h_{o}(z) & g_{o}^{0}(z)
+\end{bmatrix}=\prod_{i=1}^{n}\begin{bmatrix}
+    s_{i}(z) & 1 \\
+    1 & 0
+\end{bmatrix}\begin{bmatrix}
+    C & 0 \\
+    0 & \frac{1}{C}
+\end{bmatrix}\]
+The desired low-pass filter \(h\) has now been constructed out of lifting steps but the high-pass filter still may need adjusting. This can be done by lifting \(P^{0}(z)\) in
+\[P(z)=p^{0}(z)\begin{bmatrix}
+    1 & s(z) \\
+    0 & 1
+\end{bmatrix}\]
+It can now be concluded that every filter pair \((h,g)\) can be broken down into a product of lifting steps and a constant \(C\) in the formula,
+\[P(z)=\begin{bmatrix}
+    h_{e}(z) & g_{e}(z) \\
+    h_{o}(z) & g_{o}(z)
+\end{bmatrix}=\prod_{i=1}^{m}\begin{bmatrix}
+    1 & s_i(z) \\
+    0 & 1
+\end{bmatrix}\begin{bmatrix}
+    1 & 0 \\
+    t_{i}(z) & 1
+\end{bmatrix}\begin{bmatrix}
+    C & 0 \\
+    0 & \frac{1}{C}
+\end{bmatrix}\]
+This derivation of the construction of lifting steps for a given filter pair is based on the much more thorough and comprehensive explanation found in Ingrid Daubechies and Wim Sweldens on breaking filters into lifting steps\cite{academicpaper2}.
+\section{9/7 Cohen-Daubechies-Feauveau}
+The Cohen-Daubechies-Feauveau 9/7 wavelet is the wavelet used in the JPEG 2000 algorithm for lossy encoding. It is a biorthogonal wavelet with the analysis filter \(\tilde{h}\) having 7 filter taps and the synthesis filter \(h\) has 9 filter taps (hence 9/7 in the name). 
+The analysis filter taps and synthesis filter taps for the 9/7 wavelet are given in the following table from \cite{book}:
+\begin{center}
+\begin{tabular}{ |c | c | c| } 
+ \hline
+ n & \(\tilde{h}\) & h \\
+ \hline
+ 0 & +0.0602949018236360 & +1.115087052457000 \\ 
+ \(\pm1\) & +0.266864118442875 & +0.591271763114250 \\ 
+ \(\pm2\) & -0.078223266528990 & -0.057543526228500 \\ 
+ \(\pm3\) & -0.016864118442875 & -0.091271763114250 \\ 
+ \(\pm4\) & +0.026748757410810 &  \\ 
+ \hline
+\end{tabular}
+\end{center}
+
+Another quality of the 9/7 wavelet which can be seen from the table values is the symmetry of the filter taps. This is useful in signal processing because it leads to less artifacts and ringing during compression particularly around the boundaries of the image.
+After factoring the filters into lifting steps using the euclidean algorithm, the lifting steps for the analysis polyphase matrix from \cite{academicpaper2} are:
+\[\tilde{P}(z)=\begin{bmatrix}
+    1 & \alpha(1+z^{-1})\\
+    0 & 1
+\end{bmatrix}\begin{bmatrix}
+    1 & 0\\
+    \beta(1+z) & 1
+\end{bmatrix}\begin{bmatrix}
+    1 & \gamma(1+z^{-1})\\
+    0 & 1
+\end{bmatrix}\begin{bmatrix}
+    1 & 0\\
+    \delta(1+z) & 1
+\end{bmatrix}\begin{bmatrix}
+    \zeta & 0\\
+    0 & 1/\zeta
+\end{bmatrix}\]
+where the constants are calculated as:
+\[\alpha\approx-1.586134346\]
+\[\beta\approx-0.05298011854\]
+\[\gamma\approx0.8829110762\]
+\[\delta\approx0.4435068522\]
+\[\zeta\approx1.149604398\]
+From this it is easy to compute the synthesis polyphase matrix since the two polyphase matrices must satisfy the perfect reconstruction formula \(P(z)\tilde{P}(z^{-1})^T=I\).
+The advantage of the lifting steps can be seen in the implementation which can be characterized as the following series of steps from \cite{academicpaper2}:
+\[s_{l}^{(0)}=x_{2l}\]
+\[d_{l}^{(0)}=x_{2l+1}\]
+\[d_{l}^{(1)}=d_{l}^{(0)}+\alpha(s_{l}^{(0)}+s_{l+1}^{(0)})\]
+\[s_{l}^{(1)}=s_{l}^{(0)}+\beta(d_{l}^{(1)}+d_{l-1}^{(1)})\]
+\[d_{l}^{(2)}=d_{l}^{(1)}+\gamma(s_{l}^{(1)}+s_{l+1}^{(1)})\]
+\[s_{l}^{(2)}=s_{l}^{(1)}+\delta(d_{l}^{(2)}+d_{l-1}^{(2)})\]
+\[s_{l}=\zeta s_{l}^{(2)}\]
+\[d_{l}=d_{l}^{(2)}/\zeta\]
+
+A graph of the scaling function for the analysis low-pass filter is given below. (It was computed using the cascade algorithm on the filter taps in Spyder using Python):
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image.png}
+    \caption{9/7 Analysis Scaling Function}
+    \label{fig:enter-label}
+\end{figure}
+
+\section{5/3 LeGall}
+The 5/3 LeGall wavelet is used in the JPEG 2000 algorithm for lossless encoding. This is because of the natural numbers in its analysis and synthesis filter taps which means perfect precision can be maintained in the compression process without losing information to running out of storage. The filter taps for the 5/3 LeGall wavelet are given in the following table:
+\begin{center}
+\begin{tabular}{ |c | c | c| } 
+ \hline
+ n & \(\tilde{h}\) & h \\
+ \hline
+ 0 & 3/4 & +1 \\ 
+ \(\pm1\) & 1/4 & +1/2 \\ 
+ \(\pm2\) & -1/8 &  \\ 
+ \hline
+\end{tabular}
+\end{center}
+The 5/3 LeGall Wavelet, like the 9/7 wavelet is also symmetric.\\
+After factoring the filters into lifting steps using the euclidean algorithm, the lifting steps for the analysis polyphase matrix from \cite{book} are:
+\[\tilde{P}=\begin{bmatrix}
+    1 & 0 \\
+    -\frac{1}{2}(1+z^{-1}) & 1 
+\end{bmatrix}\begin{bmatrix}
+    1 & \frac{1}{4}(1+z) \\
+    0 & 1
+\end{bmatrix}\begin{bmatrix}
+    \sqrt{2} & 0\\
+    0 & \frac{1}{\sqrt{2}}
+\end{bmatrix}\]
+
+The synthesis polyphase matrix can be computed from these lifting steps to satisfy the perfect reconstruction formula. A series implementation of the polyphase matrix is as follows:
+\[s_{l}^{(0)}=x_{2l}\]
+\[d_{l}^{(0)}=x_{2l+1}\]
+\[d_{l}^{(1)}=d_{l}^{(0)}-\frac{1}{2}(s_{l}^{(0)}+s_{l+1}^{(0)})\]
+\[s_{l}^{(1)}=s_{l}^{(0)}+\frac{1}{4}(d_{l}^{(1)}+s_{l-1}^{(1)})\]
+\[s_{l}=\sqrt{2}s_{l}^{(1)}\]
+\[d_{l}=\frac{d_{l}^{(1)}}{\sqrt2}\]
+A graph of the 5/3 LeGall scaling function for the analysis low-pass filter is given below. (It was computed using the cascade algorithm on the filter taps in Spyder using Python):
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{image (1).png}
+    \caption{5/3 Analysis Scaling Function}
+\end{figure}
+
+\section{Demonstration}
+\subsection{Background}
+In the context of image compression, there are two ways in which data can be compressed: lossy or lossless. Lossy compression discards non-essential data in order to reduce the overall file size. Lossless compression retains all data and uses different algorithms to reduce the number of bits needed to represent the file. In both forms, it is first necessary to encode the data. What initially might be an array of seemingly random numbers may hold a pattern that is not recognizable in its current form. This is where the discrete wavelet transform is used. Before deciding on what data may be discarded or what patterns can be shortened, images are first encoded using a series of filters that separate the data into low and high frequency components$^3$. 
+
+In both instances of lossy and lossless compression, using the 9/7 Daubechies and 5/3 LeGall wavelets respectively, images are decomposed into their horizontal and vertical spatial frequency components. This is accomplished by running the horizontal pixel data through a low-pass and high-pass filter (convolving each horizontal array of pixels with the scaling function for low-pass and convolving with the wavelet for high-pass, then downsampling) to produce two sets of data. This process is then repeated on the vertical array of pixels for both outputs of the previous step\cite{book}. After these two steps are complete, the results include 4 sets of data: a low-pass low-pass (LL) set, a low-pass high-pass set (LH), a high-pass low-pass (HL) set, and a high-pass high-pass (HH) set. The process can be repeated on the LL set. Finally, the data can be quantized and compressed. 
+
+Although the basic concepts of filtering images with wavelets are based on convolutions, it is not practical for large amounts of data. The process of convolving two functions is computationally heavy and is not memory efficient. This leads to a need for algorithms that are better suited for this task. The lifting scheme, as previously mentioned, is one such algorithm. For the following examples, this paper will use the lifting scheme, as it is how practical implementations of the 9/7 Daubechies and 5/3 LeGall wavelet filters are applied. 
+
+
+\subsection{Lossless Encoding Demo}
+To compute the filtered signal for lossy encoding, using the 5/3 LeGall wavelet, the data is first extended to handle boundary conditions. Next, the equations \textit{Eq. 1a} and \textit{Eq. 1b} are used in place of a convolution, and the image is filtered as previously described. If a matrix is used to represent the pixel data in an image, then the process is as follows: 
+\[y(2n+1)=x_{ext}(2n+1)-\left\lfloor \frac{x_{ext}(2n)+x_{ext}(2n+2)}{2} \right\rfloor \tag{3}\]
+\[y(2n)=x_{ext}(2n)+\left\lfloor \frac{y(2n-1)+y(2n+1)+2}{4} \right\rfloor \tag{3}\]
+\begin{center}
+    Equations 1a and 1b: Lifting scheme for 5/3 LeGall DWT.
+\end{center}
+
+\[
+\begin{bmatrix}
+2 & 7 & 16 & 5\\
+2 & 9 & 20 & 6\\
+3 & 15 & 18 & 5\\
+2 & 8 & 19 & 7
+\end{bmatrix}
+\]
+Applying equation \textit{Eq. 1a} on the first row with symmetrical extension results in:
+\[
+y(-1) = y(2(-1)+1)= 7-\left\lfloor \frac{16+2}{2} \right\rfloor = -2
+\]
+\[
+y(1)=y(2(0)+1)=7-\left\lfloor \frac{2+16}{2} \right\rfloor = -2
+\]
+\[
+y(3)=y(2(1)+1)=5-\left\lfloor \frac{16+16}{2} \right\rfloor = -11
+\]
+These values, odd indices, represent the high-pass filter output for the first row of pixels. Note that $y(-1)$ was only computed for use in the equation \textit{Eq. 1b} and will not be a part of the final solution. 
+\[
+y(0)=y(2(0)) = 2+ \left\lfloor \frac{-2+-2+2}{4} \right\rfloor = 1
+\]
+\[
+y(2)=y(2(1))=16+\left\lfloor \frac{-2+-11+2}{4} \right\rfloor = 13
+\]
+These values, even indices, represent the low-pass filter output for the first row of pixels. Repeating this process on the remaining three rows results in:
+\[
+High-pass\ output:\ 
+\begin{bmatrix}
+    -2 & -11\\
+    -2 & -14\\
+     5 & -13 \\
+    -2 & -12
+\end{bmatrix}
+,\ Low-pass\ output:\ 
+\begin{bmatrix}
+    1 & 13\\
+    1 & 16\\
+    6 & 16 \\
+    1 & 16
+\end{bmatrix}
+\]
+
+Finally, this process is repeated on both the high-pass output and low-pass output with the exception of using columns instead of rows. Following the process generates this set of values: 
+\[
+LL:\ 
+\begin{bmatrix}
+    0 & 14\\
+    4 & 17
+\end{bmatrix},\ 
+LH:\ 
+\begin{bmatrix}
+    -3 & -12\\
+    3 & -13
+\end{bmatrix},\ 
+HL:\ 
+\begin{bmatrix}
+    -2 & 2\\
+    -5 & 0
+\end{bmatrix},\ 
+HH:\ 
+\begin{bmatrix}
+   -3 & -2\\
+   -7 & 1
+\end{bmatrix}
+\]
+The discrete wavelet transform can be visualized by applying the same process to an image and scaling the pixel data for viewing. 
+
+\begin{figure}[!ht]
+    \centering
+
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{original.jpg}
+        \caption{Original Image}
+        \label{fig:original}
+    \end{subfigure}
+    \qquad
+    \qquad
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{5_3.png}
+        \caption{Processed Image}
+        \label{fig:processed}
+    \end{subfigure}
+
+    \caption{Comparison between original and processed images}
+    \label{fig:image-comparison}
+\end{figure}
+
+\subsection{Lossy Encoding Demo}
+In manner similar to lossless encoding, lossy encoding with the 9/7 Daubechies can be accomplished using a lifting scheme. The image is first transformed row-wise and then column-wise using equations \textit{Eq. 2a} and \textit{Eq. 2b}. The main difference in this process is the use of different equations, needing to apply each equation twice with different coefficients, and the addition of a scaling factor. 
+
+\begin{table}[h]
+    \centering
+    \caption{9/7 Daubechies lifting scheme coefficients. \cite{book}}
+    \begin{tabular}{|c|c|}
+        \hline
+        $P_0$ & -1.586134\ldots \\
+        \hline
+        $U_0$ & -0.052980\ldots \\
+        \hline
+        $P_1$ &  0.882911\ldots \\
+        \hline
+        $U_1$ &  0.443506\ldots \\
+        \hline
+        $K_1 = 1/K_0$ &  1.230174\ldots \\
+        \hline
+    \end{tabular}
+\end{table}
+
+\[
+y(2n+1)=x(2n+1)+\sum_jP_kx(2j) \tag{9}
+\]
+\[
+y(2n)=x(2n)+\sum_jU_ky(2j+1)\tag{9}
+\]
+\begin{center}
+    Equations 2a and 2b: Lifting scheme for 9/7 Daubechies DWT.
+\end{center}
+
+If the process is applied to an image, and the pixel values are scaled for visualization, the results reveal important patterns and features similar to the 5/3 LeGall wavelet transform. 
+
+\begin{figure}[!ht]
+    \centering
+
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{original.jpg}
+        \caption{Original Image}
+        \label{fig:original}
+    \end{subfigure}
+    \qquad
+    \qquad
+    \begin{subfigure}[b]{0.4\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{9_7.png}
+        \caption{Processed Image}
+        \label{fig:processed}
+    \end{subfigure}
+
+    \caption{Comparison between original and processed images}
+    \label{fig:image-comparison}
+\end{figure}
+
+\section{Conclusion}
+The Cohen-Daubechies-Feauveau 9/7 wavelet and LeGall-Tabatabai 5/3 wavelet play an essential roll in the JPEG2000 still image standard. The use of discrete wavelet transforms and filtering enables image encoding for better compression and storage. The wavelet properties, biorthogonality, vanishing moments, and lifting scheme are essential to the deconstruction and reconstruction of images. Biorthogonality, the property that allows separate deconstruction and reconstruction wavelets, ensures accurate signal reconstruction with minimal aliasing and greater flexibility. Vanishing moments, the property that allows for the representation of complex details with fewer coefficients, helps to better compress images as less data needs to be stored. The last property discussed, the lifting scheme, enables developers to efficiently and accurately utilize the wavelet transforms without the need for computationally complex convolutions. It is through these properties that make wavelet-based image compression in JPEG2000 both powerful and efficient, enabling high compression while retaining quality.
+
+\bibliographystyle{plain}
+\bibliography{references}
+\begin{biblist}
+    \bib{website1}{misc}{
+    author = {Vishnu Jayan},
+    title = {How Many Terabytes Are In A Data Center? Exploring Storage Capacities in Modern Enterprises},
+    note = {Available at: \url{https://www.solix.com/blog/learning/how-many-terabytes-are-in-a-data-center-exploring-storage-capacities-in-modern-enterprises/}, Accessed: April 30, 2025},
+    year = {n.d.}
+    }
+    \bib{academicpaper1}{article}{
+        author={Wim Sweldens},
+        title = {THE LIFTING SCHEME: A CONSTRUCTION OF SECOND GENERATION WAVELETS},
+        journal = {SIAM Journal on Mathematical Analysis},
+        volume = {29},
+        number = {2},
+        year={1998},
+        pages = {511-541},
+        doi = {10.1137/S0036141095289051}
+    }
+    \bib{IEEEOverview}{article}{
+        author={Charilaos Christopoulos and Athanassios Skodras and Touradj Ebrahim},
+        title={THE JPEG2000 STILL IMAGE CODING SYSTEM: AN OVERVIEW},
+        journal={IEEE Transactions on Consumer Electronics},
+        year={2000},
+    }
+    \bib{website2}{misc}{
+    author={Prosper Otemuyiwa},
+    title={The Pros and Cons of JPEG 2000 and Other Common Image Formats},
+    note = {Available at: \url{https://cloudinary.com/blog/the_great_jpeg_2000_debate_analyzing_the_pros_and_cons_to_widespread_adoption}, Accessed April 30, 2025},
+    year= {2020},
+    }
+    \bib{academicpaper2}{article}{
+        author={Ingrid Daubechies and Wim Sweldens},
+        title={FACTORING WAVELET TRANSFORMS INTO LIFTING STEPS},
+        journal={LECTURE NOTES IN EARTH SCIENCES},
+        year={2000},
+        pages={131-157},        
+    }
+    \bib{academicpaper3}{article}{
+        author={S. Lawson and J. Zhu},
+        title={Image compression using wavelets and JPEG2000: a tutorial},
+        journal={ELECTRONICS AND COMMUNICATION ENGINEERING JOURNAL},
+        volume={14},
+        issue={3},
+        year={2002},
+        pages={112-121},
+    }
+    \bib{slides}{misc}{
+        author={Gilbert Strang and Kevin Amaratunga},
+        title={Course 18.327 and 1.130 Wavelets and Filter Banks},
+        note = {Available at: \url{https://ocw.mit.edu/courses/18-327-wavelets-filter-banks-and-applications-spring-2003/48b610fc0f1cc941fb7d1677d48b7a1f_Handout5.pdf}, Accessed: April 30, 2025},
+        year={2003}
+    }
+    \bib{book}{book}{
+        author={Majid Rabbani, Rajan L. Joshi, Paul W. Jones},
+        title={The JPEG 2000 Suite},
+        publisher={Wiley Books},
+        year={2009},
+        address={Hoboken, New Jersey}
+    }
+    
+    
+\end{biblist}
+
+\end{document}
