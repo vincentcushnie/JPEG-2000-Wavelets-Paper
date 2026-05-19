@@ -31,4 +31,3 @@ coefficients. Section 5 will demonstrate how the wavelets are used in the contex
 of the JPEG2000 standard. A simple example will be given after explaining the
 background of how and why images are first encoded. Finally, section 6 will
 conclude this paper and offer closing remarks.
-2
